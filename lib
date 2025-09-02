@@ -26,6 +26,8 @@ function CleanUI:CreateWindow(title, pos)
         Draggable = true,
     })
     new("UICorner", {Parent = frame, CornerRadius = UDim.new(0, 6)})
+
+    -- Titolo
     new("TextLabel", {
         Parent = frame,
         Text = title or "UI Window",
@@ -35,9 +37,26 @@ function CleanUI:CreateWindow(title, pos)
         Font = Enum.Font.GothamBold,
         TextSize = 18
     })
-    local sections = {}
-    return setmetatable({Frame = frame, Sections = sections}, CleanUI)
+
+    -- ✅ Container per le sezioni
+    local content = new("Frame", {
+        Parent = frame,
+        Name = "ContentHolder",
+        Position = UDim2.new(0, 0, 0, 36),
+        Size = UDim2.new(1, 0, 1, -36),
+        BackgroundTransparency = 1,
+        ClipsDescendants = true
+    })
+
+    -- Layout verticale
+    local layout = Instance.new("UIListLayout")
+    layout.Parent = content
+    layout.Padding = UDim.new(0, 6)
+    layout.SortOrder = Enum.SortOrder.LayoutOrder
+
+    return setmetatable({Frame = content, Sections = {}}, CleanUI)
 end
+
 
 function CleanUI:CreateSection(title)
     local frame = self.Frame
