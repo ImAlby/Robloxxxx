@@ -1,0 +1,212 @@
+-- CleanUILib.lua
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+local CleanUI = {}
+CleanUI.__index = CleanUI
+
+-- Factory per istanza GUI
+local function new(class, props)
+    local inst = Instance.new(class)
+    for k, v in pairs(props or {}) do inst[k] = v end
+    return inst
+end
+
+-- Crea una nuova finestra (ScreenGui)
+function CleanUI:CreateWindow(title, pos)
+    local screen = new("ScreenGui", {Name = "CleanUILib", ResetOnSpawn = false, Parent = PlayerGui})
+    local frame = new("Frame", {
+        Name = "MainFrame",
+        Parent = screen,
+        Size = UDim2.new(0, 300, 0, 400),
+        Position = pos or UDim2.new(0.5, -150, 0.5, -200),
+        BackgroundColor3 = Color3.fromRGB(40, 40, 40),
+        Active = true,
+        Draggable = true,
+    })
+    new("UICorner", {Parent = frame, CornerRadius = UDim.new(0, 6)})
+    new("TextLabel", {
+        Parent = frame,
+        Text = title or "UI Window",
+        Size = UDim2.new(1, 0, 0, 32),
+        BackgroundTransparency = 1,
+        TextColor3 = Color3.fromRGB(220, 220, 220),
+        Font = Enum.Font.GothamBold,
+        TextSize = 18
+    })
+    local sections = {}
+    return setmetatable({Frame = frame, Sections = sections}, CleanUI)
+end
+
+function CleanUI:CreateSection(title)
+    local frame = self.Frame
+    local sec = new("Frame", {
+        Parent = frame,
+        BackgroundTransparency = 1,
+        Size = UDim2.new(1, -20, 0, 0),
+        Position = UDim2.new(0, 10, 0, #self.Sections * 80 + 40)
+    })
+    local lbl = new("TextLabel", {
+        Parent = sec,
+        Text = title or "",
+        Size = UDim2.new(1, 0, 0, 24),
+        BackgroundTransparency = 1,
+        TextColor3 = Color3.fromRGB(200, 200, 200),
+        Font = Enum.Font.Gotham,
+        TextSize = 16,
+        TextXAlignment = Enum.TextXAlignment.Left
+    })
+    sec.Layout = true
+    table.insert(self.Sections, sec)
+    return sec
+end
+
+function CleanUI:AddToggle(section, label, callback)
+    local btn = new("TextButton", {
+        Parent = section,
+        Text = label,
+        Size = UDim2.new(1, 0, 0, 30),
+        BackgroundColor3 = Color3.fromRGB(60, 60, 60),
+        TextColor3 = Color3.fromRGB(220, 220, 220),
+        Font = Enum.Font.Gotham,
+        TextSize = 14,
+        AutoButtonColor = true
+    })
+    new("UICorner", {Parent = btn, CornerRadius = UDim.new(0, 4)})
+    local state = false
+    btn.MouseButton1Click:Connect(function()
+        state = not state
+        btn.BackgroundColor3 = state and Color3.fromRGB(80, 80, 80) or Color3.fromRGB(60, 60, 60)
+        callback(state)
+    end)
+end
+
+function CleanUI:AddSlider(section, label, min, max, default, callback)
+    local container = new("Frame", {
+        Parent = section,
+        Size = UDim2.new(1, 0, 0, 36),
+        BackgroundTransparency = 1
+    })
+    new("TextLabel", {
+        Parent = container,
+        Text = label,
+        Size = UDim2.new(1, -60, 0, 18),
+        Position = UDim2.new(0, 0, 0, 0),
+        BackgroundTransparency = 1,
+        TextColor3 = Color3.fromRGB(200, 200, 200),
+        Font = Enum.Font.Gotham,
+        TextSize = 14,
+        TextXAlignment = Enum.TextXAlignment.Left
+    })
+    local sliderBg = new("Frame", {
+        Parent = container,
+        Size = UDim2.new(1, -60, 0, 6),
+        Position = UDim2.new(0, 0, 0, 24),
+        BackgroundColor3 = Color3.fromRGB(80,80,80)
+    })
+    new("UICorner", {Parent = sliderBg, CornerRadius = UDim.new(0, 3)})
+    local fill = new("Frame", {
+        Parent = sliderBg,
+        Size = UDim2.new((default-min)/(max-min), 0, 1, 0),
+        BackgroundColor3 = Color3.fromRGB(120,120,120)
+    })
+    new("UICorner", {Parent = fill, CornerRadius = UDim.new(0, 3)})
+    local dragging = false
+    sliderBg.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = true end
+    end)
+    sliderBg.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
+    end)
+    sliderBg.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local pos = math.clamp((input.Position.X - sliderBg.AbsolutePosition.X)/sliderBg.AbsoluteSize.X, 0, 1)
+            fill.Size = UDim2.new(pos, 0, 1, 0)
+            callback(min + pos*(max-min))
+        end
+    end)
+end
+
+function CleanUI:AddDropdown(section, label, options, callback)
+    local btn = new("TextButton", {
+        Parent = section,
+        Text = label,
+        Size = UDim2.new(1, 0, 0, 30),
+        BackgroundColor3 = Color3.fromRGB(60, 60, 60),
+        TextColor3 = Color3.fromRGB(220, 220, 220),
+        Font = Enum.Font.Gotham,
+        TextSize = 14,
+        AutoButtonColor = true
+    })
+    new("UICorner", {Parent = btn, CornerRadius = UDim.new(0, 4)})
+    local listFrame
+    btn.MouseButton1Click:Connect(function()
+        if listFrame then
+            listFrame:Destroy()
+            listFrame = nil
+        else
+            listFrame = new("Frame", {
+                Parent = section,
+                Position = UDim2.new(0, 0, 0, btn.AbsolutePosition.Y - section.AbsolutePosition.Y + btn.AbsoluteSize.Y),
+                Size = UDim2.new(1, 0, 0, #options * 24),
+                BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+            })
+            new("UICorner", {Parent = listFrame, CornerRadius = UDim.new(0, 4)})
+            for i, opt in ipairs(options) do
+                local item = new("TextButton", {
+                    Parent = listFrame,
+                    Text = opt,
+                    Size = UDim2.new(1, 0, 0, 24),
+                    Position = UDim2.new(0, 0, 0, (i-1)*24),
+                    BackgroundTransparency = 1,
+                    TextColor3 = Color3.fromRGB(220, 220, 220),
+                    Font = Enum.Font.Gotham,
+                    TextSize = 14,
+                    AutoButtonColor = true
+                })
+                item.MouseButton1Click:Connect(function()
+                    btn.Text = label .. ": " .. opt
+                    callback(opt)
+                    listFrame:Destroy()
+                    listFrame = nil
+                end)
+            end
+        end
+    end)
+end
+
+function CleanUI:AddTextbox(section, label, placeholder, callback)
+    local container = new("Frame", {
+        Parent = section,
+        Size = UDim2.new(1, 0, 0, 30),
+        BackgroundTransparency = 1
+    })
+    new("TextLabel", {
+        Parent = container,
+        Text = label,
+        Size = UDim2.new(0.4, 0, 1, 0),
+        BackgroundTransparency = 1,
+        TextColor3 = Color3.fromRGB(200, 200, 200),
+        Font = Enum.Font.Gotham,
+        TextSize = 14,
+        TextXAlignment = Enum.TextXAlignment.Left
+    })
+    local tb = new("TextBox", {
+        Parent = container,
+        PlaceholderText = placeholder or "",
+        Size = UDim2.new(0.6, -4, 1, 0),
+        Position = UDim2.new(0.4, 4, 0, 0),
+        BackgroundColor3 = Color3.fromRGB(60, 60, 60),
+        TextColor3 = Color3.fromRGB(220, 220, 220),
+        Font = Enum.Font.Gotham,
+        TextSize = 14,
+        ClearTextOnFocus = false
+    })
+    new("UICorner", {Parent = tb, CornerRadius = UDim.new(0, 4)})
+    tb.FocusLost:Connect(function()
+        callback(tb.Text)
+    end)
+end
+
+return CleanUI
